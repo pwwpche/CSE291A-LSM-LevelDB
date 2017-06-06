@@ -34,7 +34,6 @@ class ColumnManager:
             for i in range(len(self.imTable)):
                 for key in self.imTable[i]:
                     totalDict[key] = self.imTable[i][key]
-
             self.ssTable.store(totalDict)
             self.imTable = []
 
