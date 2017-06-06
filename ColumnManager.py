@@ -9,7 +9,7 @@ class ColumnManager:
         self.mem = {}
         self.imTable = []
         self.maxLength = 8
-        self.ssTable = SSTable()
+        self.ssTable = SSTable(self.filename)
         self.now = -1
         self.fileNumber = self.ssTable.getnumber()
         self.imTableNumber = len(self.imTable) + self.fileNumber

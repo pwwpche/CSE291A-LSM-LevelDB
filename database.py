@@ -32,6 +32,8 @@ class LSMDatabase():
         for i in setList:
             wrapper.put(keyvalue,i,setList[i])
         return 0
+
+
     def delete(self,tableID,keyvalue):
         try:
             wrapper=self.memorytable[tableID]
