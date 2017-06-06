@@ -7,13 +7,13 @@ This is a temporary script file.
 import ColumnManager
 
 class TableWrapper():
-    def __init__(self, name, columns):
-        self.table_name = name
+    def __init__(self, tableID, columns):
+        self.table_id = tableID
         self.columns = columns
 
         self.column_to_mem = {}
         for column in columns:
-            self.column_to_mem[column] = ColumnManager(column)
+            self.column_to_mem[column] = ColumnManager(tableID,column)
 
 
     def get(self, column, key):
@@ -22,8 +22,11 @@ class TableWrapper():
     def put(self, key, column, value):
         self.column_to_mem[column].put(key, value)
 
-    def getAll(self, column):
-        return []
+    def getlist(self, column):
+        self.column_to_mem[column].getinit()
+        result=self.column_to_mem[column].getlist()
+        while result!=None:
+            yield result
 
     def remove(self, key):
         for manager in self.column_to_mem.values():
