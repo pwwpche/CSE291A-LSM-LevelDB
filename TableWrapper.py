@@ -36,6 +36,8 @@ class InMemManager:
     def __init__(self, column_name):
         self.column_name = column_name
         self.mem = {}
+        self.imTable = []
+        self.ssTables = []
 
     def get(self, key):
 
@@ -65,7 +67,9 @@ class ImmutableTable:
 
     def hasKey(self, key):
         return key in self.mem
-    d
+
+    def get(self, key):
+        return self.mem[key]
 
 
 

@@ -6,6 +6,7 @@ Created on Mon Jun  5 17:32:06 2017
 @author: root
 """
 import TableWrapper
+
 class LSMDatabase():
     def __init__(self):
         self.memorytable={}
