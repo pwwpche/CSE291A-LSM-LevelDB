@@ -25,7 +25,7 @@ class SSTable:
             "block_size": 10
         }
         self.__cur_file = {}
-        with open("ssMeta.dat", "w+") as my_file:
+        with open("ssMeta.dat", "r") as my_file:
             line = my_file.readline()
             if len(line) > 0:
                 self.__meta = json.loads(line)
