@@ -7,7 +7,8 @@ import os
 from Queue import PriorityQueue
 import collections
 import math
-
+import gzip
+import shutil
 
 class SSTable:
     def __init__(self, name):
@@ -19,6 +20,8 @@ class SSTable:
             "max_major": 10,
             "minor": 0,
             "major": 0,
+            "gzip_compression": True,
+            "dict_compression": True,
             "block_size": 10
         }
         self.__cur_file = {}
@@ -140,23 +143,28 @@ class SSTable:
 
     def __dump_table(self, file_name, mem_list):
         ft = BloomFilter(capacity=1000)
-
         for key in [k for (k, v) in mem_list]:
             ft.add(key)
         key_pos = []
         with open(file_name + "_sstable_bloom.dat", "wb") as openfile:
             pickle.dump(ft, openfile, pickle.HIGHEST_PROTOCOL)
+        if self.__meta['dict_compression']:
+            comp_dict, mem_list = self.__huffman_compression(mem_list)
+            with open(file_name + "_sstable_comp_dict.dat", "wb") as openfile:
+                pickle.dump(comp_dict, openfile, pickle.HIGHEST_PROTOCOL)
         with open(file_name + "_sstable_data.dat", "wb") as openfile:
             for (k, v) in mem_list:
                 key_pos.append((k, openfile.tell()))
                 pickle.dump((k, v), openfile, pickle.HIGHEST_PROTOCOL)
+        if self.__meta['gzip_compression']:
+            self.__gzip_compression(file_name)
         with open(file_name + "_sstable_keys.dat", "wb") as openfile:
             pickle.dump(key_pos, openfile, pickle.HIGHEST_PROTOCOL)
 
     def __load_index(self, file_name):
         with open(file_name + "_sstable_keys.dat", "rb") as openfile:
             s = pickle.load(openfile)
-            return s
+            return collections.OrderedDict(s)
 
     def __load_ordered_data(self, file_name):
         arr = self.__load_ordered_array(file_name)
@@ -166,24 +174,34 @@ class SSTable:
     def __fetch_by_key(self, file_name, key):
         key_idx = self.__load_index(file_name)
         pos = key_idx[key]
+        if self.__meta['gzip_compression']:
+            self.__gzip_decompression(file_name)
         with open(file_name + "_sstable_data.dat", "rb") as openfile:
             openfile.seek(pos)
-            t = pickle.load(openfile)
-            return t[1]
+            (key, val) = pickle.load(openfile)
+            if self.__meta['dict_compression']:
+                with open(file_name + "_sstable_comp_dict.dat", "rb") as openfile:
+                    comp_dict = pickle.load(openfile)
+                    val = comp_dict[val]
+            return key, val
 
     def __load_ordered_array(self, file_name):
         data = []
+        if self.__meta['gzip_compression']:
+            self.__gzip_decompression(file_name)
         with open(file_name + "_sstable_data.dat", "rb") as openfile:
             while 1:
                 try:
                     data.append(pickle.load(openfile))
                 except EOFError:
                     break
-        if os.path.isfile(file_name + "_sstable_comp_dict.dat"):
+        if self.__meta['dict_compression']:
             with open(file_name + "_sstable_comp_dict.dat", "rb") as openfile:
                 comp_dict = pickle.load(openfile)
-            for key in data:
-                data[key] = comp_dict[data[key]]
+            uncompressed_data = []
+            for (key, value) in data:
+                uncompressed_data.append((key, comp_dict[value]))
+            data = uncompressed_data
         return data
 
     def __load_filter(self, file_name):
@@ -191,20 +209,21 @@ class SSTable:
             bf = pickle.load(openfile)
             return bf
 
-    def __huffman_compression(self, file_name):
-        if os.path.isfile(file_name + "_sstable_comp_dict.dat"):
-            return
-        data = self.__load_ordered_data(file_name)
+    def __huffman_compression(self, ordered_data):
         comp_dict = {}
-        for key in data:
-            if data[key] not in comp_dict:
-                comp_dict[data[key]] = 0
-            comp_dict[data[key]] += 1
+        for (key, value) in ordered_data:
+            if value not in comp_dict:
+                comp_dict[value] = 0
+            comp_dict[value] += 1
         comp_dict = huffman.codebook([(k, comp_dict[k]) for k in comp_dict])
+        comp_data = [(k, comp_dict[v]) for (k, v) in ordered_data]
+        comp_dict = {comp_dict[k]: k for k in comp_dict}
+        return comp_dict, comp_data
 
-        for key in data:
-            data[key] = comp_dict[data[key]]
-        with open(file_name + "_sstable_comp_dict.dat", "wb") as openfile:
-            pickle.dump(comp_dict, openfile, pickle.HIGHEST_PROTOCOL)
-        with open(file_name + "_sstable_data.dat", "wb") as openfile:
-            pickle.dump(data, openfile, pickle.HIGHEST_PROTOCOL)
+    def __gzip_compression(self, file_name):
+        with open(file_name + "_sstable_data.dat", 'rb') as f_in, gzip.open(file_name + "_sstable_data.dat.gz", 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
+    def __gzip_decompression(self, file_name):
+        with gzip.open(file_name + "_sstable_data.dat.gz", 'rb') as f_in, open(file_name + "_sstable_data.dat", 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
