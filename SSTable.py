@@ -7,6 +7,7 @@ import huffman
 import os
 from Queue import PriorityQueue
 import collections
+import math
 
 class SSTable():
 
@@ -19,6 +20,7 @@ class SSTable():
             "max_major": 10,
             "minor": 0,
             "major": 0,
+            "block_size": 10
         }
         with open("ssMeta.dat", "w+") as my_file:
             line = my_file.readline()
@@ -44,13 +46,37 @@ class SSTable():
         return data[key]
 
     def getnumber(self):
-        return self.__meta["minor"] + self.__meta["major"]
+        self.locked = True
+        totSize = 0
+        for i in range(self.__meta["minor"]):
+            totSize += len(self.__load_index(self.__name + str(i) + "_minor"))
+        for i in range(self.__meta["major"]):
+            totSize += len(self.__load_index(self.__name + str(i) + "_minor"))
+        self.cur_file = {}
+        self.cur_file["type"] = "major" if self.__meta["minor"] == 0 else "minor"
+        self.cur_file["index"] = self.__meta[self.cur_file['type']] - 1
+        self.cur_file["pos"] = 0
+        return math.ceil(totSize * 1.0 / self.__meta["block_size"])
+
 
     def getfile(self, index):
-        if index < self.__meta["minor"]:
-            return self.__load_ordered_data(self.__name + str(index) + "_minor")
-        else:
-            return self.__load_ordered_data(self.__name + str(index - self.__meta["minor"]) + "_major")
+        if self.cur_file['type'] == "major" and self.cur_file['index'] == -1:
+            self.locked = False
+            return None
+        data = self.__load_ordered_array(self.__name + str(self.cur_file['index']) + "_" + self.cur_file['type'])
+        start = self.cur_file["pos"]
+        end = self.cur_file["pos"] + self.__meta["block_size"]
+        ret_data = collections.OrderedDict(data[start:end])
+        self.cur_file["pos"] = end
+
+        if self.cur_file["pos"] >= len(data):
+            self.cur_file["pos"] = 0
+            self.cur_file["index"] -= 1
+            if self.cur_file["index"] == -1 and self.cur_file["type"] == "minor":
+                self.cur_file["type"] = "major"
+                self.cur_file["index"] = self.__meta["minor"] - 1
+        return ret_data
+
 
     def store(self, mem):
         if self.locked:
