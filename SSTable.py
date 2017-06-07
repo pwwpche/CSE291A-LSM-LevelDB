@@ -38,12 +38,13 @@ class SSTable():
 
     def get(self, key):
         if key in self.__key_file:
-            data = self.__load_ordered_data(self.__key_file[key])
+            data = self.__fetch_by_key(self.__key_file[key])
             return data[key]
         if not self.contains_key(key):
             return None
-        data = self.__load_ordered_data(self.__key_file[key])
-        return data[key]
+        # data = self.__load_ordered_data(self.__key_file[key])
+        # return data[key]
+        return self.__fetch_by_key(self.__key_file[key], key)
 
     def getnumber(self):
         self.locked = True
@@ -81,10 +82,10 @@ class SSTable():
     def store(self, mem):
         if self.locked:
             return
-        mem = collections.OrderedDict(mem)
-
+        mem = [(k, mem[k]) for k in mem]
+        mem = sorted(mem, key=lambda t: t[0])
         table_id = self.__meta["minor"]
-        self.__dump_table(self.__name + str(table_id) + "_minor", mem.items())
+        self.__dump_table(self.__name + str(table_id) + "_minor", mem)
         self.__meta["minor"] += 1
         # Update key-file lookup table
         for key in self.__key_file:
@@ -143,31 +144,47 @@ class SSTable():
 
     def __dump_table(self, file_name, mem_list):
         ft = BloomFilter(capacity=1000)
-        keys = [k for (k,v) in mem_list]
-        for key in keys:
+
+        for key in [k for (k,v) in mem_list]:
             ft.add(key)
+        key_pos = []
         with open(file_name + "_sstable_bloom.dat", "wb") as openfile:
             pickle.dump(ft, openfile, pickle.HIGHEST_PROTOCOL)
-        with open(file_name + "_sstable_keys.dat", "wb") as openfile:
-            pickle.dump(keys, openfile, pickle.HIGHEST_PROTOCOL)
         with open(file_name + "_sstable_data.dat", "wb") as openfile:
-            pickle.dump(mem_list, openfile, pickle.HIGHEST_PROTOCOL)
+            for (k,v) in mem_list:
+                key_pos.append((k, openfile.tell()))
+                pickle.dump((k,v), openfile, pickle.HIGHEST_PROTOCOL)
+        with open(file_name + "_sstable_keys.dat", "wb") as openfile:
+            pickle.dump(key_pos, openfile, pickle.HIGHEST_PROTOCOL)
+
 
     def __load_index(self, file_name):
-        s = Set()
+        s = {}
         with open(file_name + "_sstable_keys.dat", "rb") as openfile:
             s = pickle.load(openfile)
-        return s
+        return collections.OrderedDict(s)
 
     def __load_ordered_data(self, file_name):
         arr = self.__load_ordered_array(file_name)
         data = collections.OrderedDict(arr)
         return data
 
+    def __fetch_by_key(self, file_name, key):
+        key_idx = self.__load_index(file_name)
+        pos = key_idx[key]
+        with open(file_name + "_sstable_data.dat", "rb") as openfile:
+            openfile.seek(pos)
+            t = pickle.load(openfile)
+            return t[1]
+
     def __load_ordered_array(self, file_name):
         data = []
         with open(file_name + "_sstable_data.dat", "rb") as openfile:
-            data = pickle.load(openfile)
+            while 1:
+                try:
+                    data.append(pickle.load(openfile))
+                except EOFError:
+                    break
         if os.path.isfile(file_name + "_sstable_comp_dict.dat"):
             with open(file_name + "_sstable_comp_dict.dat", "rb") as openfile:
                 comp_dict = pickle.load(openfile)
