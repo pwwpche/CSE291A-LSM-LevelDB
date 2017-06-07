@@ -2,15 +2,14 @@
 from pybloom import BloomFilter
 import pickle
 import json
-from sets import Set
 import huffman
 import os
 from Queue import PriorityQueue
 import collections
 import math
 
-class SSTable():
 
+class SSTable:
     def __init__(self, name):
         self.__name = name
         self.locked = False
@@ -22,6 +21,7 @@ class SSTable():
             "major": 0,
             "block_size": 10
         }
+        self.__cur_file = {}
         with open("ssMeta.dat", "w+") as my_file:
             line = my_file.readline()
             if len(line) > 0:
@@ -38,7 +38,7 @@ class SSTable():
 
     def get(self, key):
         if key in self.__key_file:
-            data = self.__fetch_by_key(self.__key_file[key])
+            data = self.__fetch_by_key(self.__key_file[key], key)
             return data[key]
         if not self.contains_key(key):
             return None
@@ -48,36 +48,33 @@ class SSTable():
 
     def getnumber(self):
         self.locked = True
-        totSize = 0
+        total_size = 0
         for i in range(self.__meta["minor"]):
-            totSize += len(self.__load_index(self.__name + str(i) + "_minor"))
+            total_size += len(self.__load_index(self.__name + str(i) + "_minor"))
         for i in range(self.__meta["major"]):
-            totSize += len(self.__load_index(self.__name + str(i) + "_minor"))
-        self.cur_file = {}
-        self.cur_file["type"] = "major" if self.__meta["minor"] == 0 else "minor"
-        self.cur_file["index"] = self.__meta[self.cur_file['type']] - 1
-        self.cur_file["pos"] = 0
-        return math.ceil(totSize * 1.0 / self.__meta["block_size"])
-
+            total_size += len(self.__load_index(self.__name + str(i) + "_minor"))
+        self.__cur_file = {"type": "major" if self.__meta["minor"] == 0 else "minor"}
+        self.__cur_file["index"] = self.__meta[self.__cur_file['type']] - 1
+        self.__cur_file["pos"] = 0
+        return math.ceil(total_size * 1.0 / self.__meta["block_size"])
 
     def getfile(self, index):
-        if self.cur_file['type'] == "major" and self.cur_file['index'] == -1:
+        if self.__cur_file['type'] == "major" and self.__cur_file['index'] == -1:
             self.locked = False
             return None
-        data = self.__load_ordered_array(self.__name + str(self.cur_file['index']) + "_" + self.cur_file['type'])
-        start = self.cur_file["pos"]
-        end = self.cur_file["pos"] + self.__meta["block_size"]
+        data = self.__load_ordered_array(self.__name + str(self.__cur_file['index']) + "_" + self.__cur_file['type'])
+        start = self.__cur_file["pos"]
+        end = self.__cur_file["pos"] + self.__meta["block_size"]
         ret_data = collections.OrderedDict(data[start:end])
-        self.cur_file["pos"] = end
+        self.__cur_file["pos"] = end
 
-        if self.cur_file["pos"] >= len(data):
-            self.cur_file["pos"] = 0
-            self.cur_file["index"] -= 1
-            if self.cur_file["index"] == -1 and self.cur_file["type"] == "minor":
-                self.cur_file["type"] = "major"
-                self.cur_file["index"] = self.__meta["minor"] - 1
+        if self.__cur_file["pos"] >= len(data):
+            self.__cur_file["pos"] = 0
+            self.__cur_file["index"] -= 1
+            if self.__cur_file["index"] == -1 and self.__cur_file["type"] == "minor":
+                self.__cur_file["type"] = "major"
+                self.__cur_file["index"] = self.__meta["minor"] - 1
         return ret_data
-
 
     def store(self, mem):
         if self.locked:
@@ -138,31 +135,28 @@ class SSTable():
                     q.put((partitions[i][p + 1][0], i, p + 1))
             merged.append((key, partitions[idx][pos][1]))
             if pos + 1 < len(partitions[idx]):
-                q.put((partitions[idx][pos+1][0], idx, pos + 1))
+                q.put((partitions[idx][pos + 1][0], idx, pos + 1))
         return merged
-
 
     def __dump_table(self, file_name, mem_list):
         ft = BloomFilter(capacity=1000)
 
-        for key in [k for (k,v) in mem_list]:
+        for key in [k for (k, v) in mem_list]:
             ft.add(key)
         key_pos = []
         with open(file_name + "_sstable_bloom.dat", "wb") as openfile:
             pickle.dump(ft, openfile, pickle.HIGHEST_PROTOCOL)
         with open(file_name + "_sstable_data.dat", "wb") as openfile:
-            for (k,v) in mem_list:
+            for (k, v) in mem_list:
                 key_pos.append((k, openfile.tell()))
-                pickle.dump((k,v), openfile, pickle.HIGHEST_PROTOCOL)
+                pickle.dump((k, v), openfile, pickle.HIGHEST_PROTOCOL)
         with open(file_name + "_sstable_keys.dat", "wb") as openfile:
             pickle.dump(key_pos, openfile, pickle.HIGHEST_PROTOCOL)
 
-
     def __load_index(self, file_name):
-        s = {}
         with open(file_name + "_sstable_keys.dat", "rb") as openfile:
             s = pickle.load(openfile)
-        return collections.OrderedDict(s)
+            return s
 
     def __load_ordered_data(self, file_name):
         arr = self.__load_ordered_array(file_name)
@@ -193,10 +187,9 @@ class SSTable():
         return data
 
     def __load_filter(self, file_name):
-        bf = BloomFilter(capacity=1000)
         with open(file_name + "_sstable_bloom.dat", "rb") as openfile:
             bf = pickle.load(openfile)
-        return bf
+            return bf
 
     def __huffman_compression(self, file_name):
         if os.path.isfile(file_name + "_sstable_comp_dict.dat"):
