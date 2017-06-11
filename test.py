@@ -6,15 +6,26 @@ Created on Mon Jun  5 20:39:23 2017
 @author: root
 """
 
-def wherefunction(s):
-    return s=='5'
+from SSTable import *
 
-import database
-testDB = database.LSMDatabase()
+def test_SSTable():
+    sst = SSTable("ss1")
 
-T1=testDB.create(set(['name','birthplace']))
-T2=testDB.create(set(['birthyear','birthmonth','bitrhday']))
-for i in range(128):
-    testDB.append(T1,str(1+i),dict({'name': ("abc"+str(i)),'birthplace':("192.168.0."+str(i))}))
-    testDB.append(T2,str(3+i),dict({'birthyear':str(1993+i//10),'birthmonth':str(1+i%12),'bitrhday':str(1+i%28)}))
-testDB.select(T1,wherefunction)
+
+    # for i in range(10):
+    #     mem = {}
+    #     for j in range(100):
+    #         mem[i * j] = i
+    #     #mem = {1:1, 2:2, 3:3}
+    #     sst.store(mem)
+
+    sst.getnumber()
+    while True:
+        data = sst.getfile(0)
+        if data is None:
+            break
+        print data
+
+    print sst.get(666)
+
+test_SSTable()
