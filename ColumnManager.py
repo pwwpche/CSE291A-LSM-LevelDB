@@ -38,7 +38,10 @@ class ColumnManager:
             self.imTable = []
 
     def remove(self, key):
-        self.mem[key] = None
+        if key in self.mem:
+            del self.mem[key]
+        else:
+            self.put(key,None)
 
     def getlist(self):
         self.now += 1

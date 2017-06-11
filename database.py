@@ -20,7 +20,24 @@ class LSMDatabase():
         self.valuestable[result]=valuesName
         self.memorytable[result]=TableWrapper(result,list(valuesName))
         return result
-    def set(self,tableID,keyvalue,setList):
+    def append(self,tableID,keyvalue,setList):
+        try:
+            valuestable=self.valuestable[tableID]
+        except:
+            return -1
+        for i in setList:
+            if i not in valuestable:
+                return -2
+        wrapper=self.memorytable[tableID]
+        setdict={}
+        for i in valuestable:
+            setdict[i]=""
+        for i in setList:
+            setdict[i]=setList[i]
+        for i in setdict:
+            wrapper.put(keyvalue,i,setdict[i])
+        return 0
+    def setvalue(self,tableID,keyvalue,setList):
         try:
             valuestable=self.valuestable[tableID]
         except:
@@ -40,6 +57,7 @@ class LSMDatabase():
         except:
             return -1
         wrapper.remove(keyvalue)
+        return 0
     def select(self,tableID,valuesName,whereFunction=None):
         try:
             oldvaluesName=self.valuestable[tableID]
@@ -50,7 +68,7 @@ class LSMDatabase():
                 return -2
         newid=self.create(valuesName)
         wrapper=self.memorytable[tableID]
-        if whereFuntion==None:
+        if whereFunction==None:
             for column in valuesName:
                 tmp=wrapper.get(column)
                 for row in tmp:
@@ -59,6 +77,8 @@ class LSMDatabase():
             for column in valuesName:
                 tmp=wrapper.get(column)
                 for row in tmp:
-                    if whereFunction[i[0]]:
+                    if whereFunction[row[0]]:
                         self.set(newid,row[0],[(column,row[1])])
         return newid
+    def show(self,tableID):
+        result=dict()
