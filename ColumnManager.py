@@ -43,7 +43,7 @@ class ColumnManager:
     def getlist(self):
         self.now += 1
         if self.now < self.fileNumber:
-            return self.ssTable.getfile(self.now)
+            return self.ssTable.getfile()
         elif self.now < self.imTableNumber:
             return self.imtable[self.now - self.fileNumber]
         elif self.now == self.imTableNumber:
