@@ -35,10 +35,61 @@ For append and edit action, we use "set" to do this function. the set function t
 For the select and join action, we need to scan all the table. At first, we think about that for every select/join we need to shuffle the storage, which means doing compaction and update every key to the newest. But later we find that necessary. We can join or select on records from old to new, in this way, the data maintain in order and we can let the new table to take care about the  compaction problem. In total, the join action is to join the record, not the special data. Let see if there are two tables: table A and table B. What we do is to take the table A and get all record. For every record, we find if the key is in the table B, if it is, we extract all data of that key and just put the record in the new database. And there is why we need to add record to all column, that is because we need to check the key to see if it is in the database. We do not have the global key, we can only pick up one column and do the check. And the select action is the same. We select the record rather that the true data. We never do the data shuffle and compaction ourselves. Only the disk manage determine the time of compaction. As for the where function, since we do not have the time to implement query engine. So the where is implemented as a function and it only support choose on keys.
 \subsection{store in the memory}
 The store in memory has nothing to do with the database management. After the column management, the memory store only need to deal with the bunch of key-value pairs. So we do this kind of things: if the value is None and the key has already in the map, we delete the key, if not, we add the None as record. The other things, we just add the record to the map. Once the size of the map is large enough, we pack the map and move it to an immutable table, and we make the map empty. Here is the difference between bigtable and the levelDB. The bigtable pack the memory cache and store them in the disk as some small file and use the minor compaction to merge them. The levelDB introduce the immutable table. This immutable table is in the memory and can only be read. So it only provide the search convinience. My best guess is that LevelDB focus on the performance but the bigtable consider about the scale problem. Bigtable uses all memory as cache so it can achieve better performance on frequent modification. Anyway, we use the idea of immutable table here so we can have better performance when select and join.
+
+
 \subsection{compaction}
+There are two types of compaction: \textbf{Minor compaction}, and \textbf{Major compaction}.
+
+\begin{itemize}
+  \item Minor compaction. The mechanism is similar to the "minor compaction" of LevelDB on SSTable level 0. Data to be compacted comes from the immutable table in memory. When the immutable becomes too large (in our implementation, this is managed by the first layer), it is completely dumped to disk, and emptied later.
+
+  Data(key-value pairs) in immutable is sorted by key, and then written to file pair by pair. This is implemented by simply iterating all key-value pairs, and store them into an opened file.
+
+  \item Major compaction. Major compaction is performed when there are too many minor compaction files. If the number of minor compaction exceeds $max_minor = 10$, those minor compactions files are all merged into a major compaction file.  Since all the key-value pairs are sorted, we can simply perform a merge join in those minor files. The merging process are described below.
+
+  We use a priority queue to maintain the key that a pointer is pointing to. One after another, we get the smallest key from the queue, and if there are multiple keys that are smallest, then we keep the one from the newest minor compaction, and discard the others. Then we move those pointers to the next key-value pair in the file it points to. If there is a tombstone on that key, we will again discard it. Finally, this key is added to the array of contents of the major compaction. Keys in the content still obtain correct order.
+
+  After merging, we simply write this major compaction to disk.
+
+\end{itemize}
+
 \subsection{bloom filter}
+
+For each file, either it is a major compaction or it is a minor compaction, they will all have their own bloom filter to accelerate lookup. Bloomfilter is implemented with a large bit array, and several irrelated hash functions. When inserting, different hash functions will set some bits to true, and when testing whether a key exists, if all of the bits that this key mapped to are set, then it will return a true indicating this key might have exists in the set.\\
+
+For our implementation, each table has maximum capacity of $1000$ keys, so the filter have $3500$ bits to ensure its probability of correctness.
+
 \subsection{compression}
+  Our implementation supports \textbf{dict-based compression}, and \textbf{general compression}. They can both be applied to a table to be stored and a table that is already stored. They can be both applied to the same table, as long as the configuration of the table, "gzip_compression" or "dict_compression", are set to $True$.
+
+  \begin{itemize}
+    \item \textbf{Dict-based compression}. In disk-based compression, the whole table will be scanned, and values are counted by its number of occurance. Then we construct Huffman tree by the counts of values, and replace each value with its huffman encoding.
+
+    After values are encoded, when saving files, we simply replace the original value with the encoded value, and save it into disk one after another. The file still consists of key-value pairs, but the value now becomes the Huffman encoding of the original value.
+
+    \item \textbf{General compression}. This is implemented using the built-in \textit{gzip} compression. Whenever needed, the original file will be read again, and compressed with the python \textit{gzip} library, and saved to disk. The original file can be kept, if the configuration does not allow to delete the original file.
+
+  \end{itemize}
+
 \subsection{store on the disk}
+  All the data: the bloom filter, the key index, the dict-based compression dictionary, are stored on seperate files on the disk. Each table, or, to say, compaction, have its own data stored in its own file.\\
+
+  \textbf{Saving compaction:}\\
+
+  First, a bloom filter of this table is constructed for all the keys in this table. Then it will be written in its own file, named by table number and "\_bloom" suffix. Then the filter is dumped to file by python \textit{pickle} library, thus relieved us from the trival work to dump and load object from file. When it comes to table data and key index, we still use this library to dump them.
+
+  Then, configuration of this table is examined. If the "dict\_compression" is set, we first construct the huffman encoding dictionary of the keys in this table, and store this table in a file ending with "\_comp\_dict" suffix. And then we replace the values in this table with its huffman encoded value.
+
+  If "dict\_compression" is not set, or if the dict-based compression is completed, we dump the key-value pair in this table one by one. When writing objects, we also record the position that this pair is stored in this file, so that later on we can load it faster without loading the whole file. The data file has a suffix of "\_data".
+
+  After writing data, we have the relative position of all the key-value pairs in the file it stored. At the same time, we also have the keys themselves. So we create a key index file with keys in the original data table as key, and position this record was written as value. This map is stored in the file with suffix "\_keys".\\
+
+  \textbf{Loading compaction:}\\
+
+  All the files, dict-based compression dictionary, key index table are loaded before loading the actual data. If the file is compressed by general compression, the data file will be decompressed first. If dict-based compression is enabled, the compression dictionary will be read before decompressing the data file.
+
+  We also support fast loading, which is to load a key-value pair by key in any file. Since we have the relative position of all the key-value pairs, load by key only requires the relative postion, the value, in the key index file. Thus we don't have to load the entire file when we only need several record with some specific keys.
+
 
 \section{Test}
 \end{document}
