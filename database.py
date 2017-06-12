@@ -70,15 +70,33 @@ class LSMDatabase():
         wrapper=self.memorytable[tableID]
         if whereFunction==None:
             for column in valuesName:
-                tmp=wrapper.get(column)
-                for row in tmp:
-                    self.set(newid,row[0],[(column,row[1])])
+                for tmp in wrapper.getlist(column):
+                    for row in tmp:
+                        self.set(newid,row[0],[(column,row[1])])
         else:
             for column in valuesName:
-                tmp=wrapper.get(column)
-                for row in tmp:
-                    if whereFunction[row[0]]:
-                        self.set(newid,row[0],[(column,row[1])])
+                for tmp in wrapper.getlist(column):
+                    for row in tmp:
+                        if whereFunction[row[0]]:
+                            self.set(newid,row[0],[(column,row[1])])
         return newid
     def show(self,tableID):
         result=dict()
+        try:
+            values=list(self.valuestable[tableID])
+        except:
+            return -1
+        if not values:
+            return -2
+        value=values[0]
+        wrapper=self.memorytable[tableID]
+        for tmp in wrapper.getlist(value):
+            for row in tmp:
+                if row[0] not in result:
+                    result[row[0]]={}
+                result[row[0]][value]=row[1]
+        for value in values[1:]:
+            for i in result:
+                result[i][value]=wrapper.get(value,i)
+        print(result)
+        return 0

@@ -5,7 +5,7 @@ Created on Mon Jun  5 20:39:23 2017
 
 @author: root
 """
-
+'''
 from SSTable import *
 
 def test_SSTable():
@@ -29,3 +29,8 @@ def test_SSTable():
     print sst.get(666)
 
 test_SSTable()
+'''
+import LSMDatabase
+database=LSMDatabase()
+t1=database.create(set())
+t2=database.create(set())
