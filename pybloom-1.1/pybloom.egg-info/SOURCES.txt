@@ -1,0 +1,13 @@
+MANIFEST.in
+README.txt
+ez_setup.py
+setup.py
+pybloom/__init__.py
+pybloom/pybloom.py
+pybloom/tests.py
+pybloom.egg-info/PKG-INFO
+pybloom.egg-info/SOURCES.txt
+pybloom.egg-info/dependency_links.txt
+pybloom.egg-info/requires.txt
+pybloom.egg-info/top_level.txt
+pybloom.egg-info/zip-safe

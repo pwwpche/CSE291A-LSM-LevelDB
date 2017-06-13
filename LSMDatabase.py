@@ -13,12 +13,12 @@ class LSMDatabase():
         self.valuestable={}
         self.idnotused=0
     def create(self,valuesName):
-        if type(valuesName)!='set':
+        if type(valuesName)!=set:
             return -1
         result=self.idnotused
         self.idnotused+=1
         self.valuestable[result]=valuesName
-        self.memorytable[result]=TableWrapper(result,list(valuesName))
+        self.memorytable[result]=TableWrapper.TableWrapper(result,list(valuesName))
         return result
     def append(self,tableID,keyvalue,setList):
         try:

@@ -13,7 +13,7 @@ class TableWrapper():
 
         self.column_to_mem = {}
         for column in columns:
-            self.column_to_mem[column] = ColumnManager(tableID,column)
+            self.column_to_mem[column] = ColumnManager.ColumnManager(tableID,column)
 
 
     def get(self, column, key):
