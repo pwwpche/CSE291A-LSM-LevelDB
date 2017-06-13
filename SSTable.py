@@ -25,7 +25,8 @@ class SSTable:
             "block_size": 10
         }
         self.__cur_file = {}
-        with open("ssMeta.dat", "r") as my_file:
+
+        with open(self.__name + "_ssMeta.dat", "a+") as my_file:
             line = my_file.readline()
             if len(line) > 0:
                 self.__meta = json.loads(line)
@@ -111,7 +112,7 @@ class SSTable:
                     self.__key_file[key] = self.__name + str(table_id) + "_major"
 
         # Update meta file
-        with open("ssMeta.dat", "w") as my_file:
+        with open(self.__name + "_ssMeta.dat", "w") as my_file:
             my_file.write(json.dumps(self.__meta))
 
     def __check_table(self, table_name, key):
