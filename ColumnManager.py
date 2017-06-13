@@ -9,11 +9,15 @@ class ColumnManager:
         self.mem = {}
         self.imTable = []
         self.maxLength = 8
-        self.ssTable = SSTable(self.filename)
+        self.ssTable = SSTable.SSTable(self.filename)
         self.now = -1
         self.fileNumber = self.ssTable.getnumber()
         self.imTableNumber = len(self.imTable) + self.fileNumber
 
+    def getinit(self):
+        self.now = -1
+        self.fileNumber = self.ssTable.getnumber()
+        self.imTableNumber = len(self.imTable) + self.fileNumber
     def get(self, key):
         if key in self.mem:
             return self.mem[key]
@@ -45,10 +49,11 @@ class ColumnManager:
 
     def getlist(self):
         self.now += 1
+        print self.now,self.fileNumber
         if self.now < self.fileNumber:
             return self.ssTable.getfile()
         elif self.now < self.imTableNumber:
-            return self.imtable[self.now - self.fileNumber]
+            return self.imTable[self.now - self.fileNumber]
         elif self.now == self.imTableNumber:
             return self.mem
         else:

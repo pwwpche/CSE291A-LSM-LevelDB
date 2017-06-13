@@ -13,7 +13,7 @@ class TableWrapper():
 
         self.column_to_mem = {}
         for column in columns:
-            self.column_to_mem[column] = ColumnManager(tableID,column)
+            self.column_to_mem[column] = ColumnManager.ColumnManager(tableID,column)
 
 
     def get(self, column, key):
@@ -26,7 +26,9 @@ class TableWrapper():
         self.column_to_mem[column].getinit()
         result=self.column_to_mem[column].getlist()
         while result!=None:
+            print result
             yield result
+            result=self.column_to_mem[column].getlist()
 
     def remove(self, key):
         for manager in self.column_to_mem.values():

@@ -30,7 +30,17 @@ def test_SSTable():
 
 test_SSTable()
 '''
+
+def wherefunction(tup):
+    return tup=="a5"
 import LSMDatabase
-database=LSMDatabase()
-t1=database.create(set())
-t2=database.create(set())
+database=LSMDatabase.LSMDatabase()
+t1=database.create(set(["name"]))
+t2=database.create(set(["birthday","birthplace"]))
+print t1,t2
+for i in range(128):
+    tmp=database.append(t1,"a"+str(i),{"name":"a"*(i/6+1)})
+    tmp=database.append(t2,"a"+str(i),{"birthday":"b"*(i/6+1),"birthplace":"c"*(i/6+1)})
+t3=database.select(t1)
+print "select finished"
+database.show(t3)
