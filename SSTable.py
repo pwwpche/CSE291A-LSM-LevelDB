@@ -25,7 +25,7 @@ class SSTable:
             "block_size": 10
         }
         self.__cur_file = {}
-        with open("ssMeta.dat", "r") as my_file:
+        with open(name+"_ssMeta.dat", "a+") as my_file:
             line = my_file.readline()
             if len(line) > 0:
                 self.__meta = json.loads(line)
@@ -59,7 +59,7 @@ class SSTable:
         self.__cur_file = {"type": "major" if self.__meta["minor"] == 0 else "minor"}
         self.__cur_file["index"] = self.__meta[self.__cur_file['type']] - 1
         self.__cur_file["pos"] = 0
-        return math.ceil(total_size * 1.0 / self.__meta["block_size"])
+        return int(math.ceil(total_size * 1.0 / self.__meta["block_size"]))
 
     def getfile(self, index):
         if self.__cur_file['type'] == "major" and self.__cur_file['index'] == -1:

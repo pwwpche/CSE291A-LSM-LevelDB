@@ -58,11 +58,13 @@ class LSMDatabase():
             return -1
         wrapper.remove(keyvalue)
         return 0
-    def select(self,tableID,valuesName,whereFunction=None):
+    def select(self,tableID,valuesName=None,whereFunction=None):
         try:
             oldvaluesName=self.valuestable[tableID]
         except:
             return -1
+        if valuesName==None:
+            valuesName=oldvaluesName
         for column in valuesName:
             if column not in oldvaluesName:
                 return -2
@@ -71,14 +73,15 @@ class LSMDatabase():
         if whereFunction==None:
             for column in valuesName:
                 for tmp in wrapper.getlist(column):
-                    for row in tmp:
-                        self.set(newid,row[0],[(column,row[1])])
+                    #print "check"
+                    for key in tmp:
+                        self.setvalue(newid,key,{column:tmp[key]})
         else:
             for column in valuesName:
                 for tmp in wrapper.getlist(column):
-                    for row in tmp:
-                        if whereFunction[row[0]]:
-                            self.set(newid,row[0],[(column,row[1])])
+                    for key in tmp:
+                        if whereFunction[key]:
+                            self.setvalue(newid,key,{column:tmp[key]})
         return newid
     def show(self,tableID):
         result=dict()
@@ -91,10 +94,12 @@ class LSMDatabase():
         value=values[0]
         wrapper=self.memorytable[tableID]
         for tmp in wrapper.getlist(value):
-            for row in tmp:
-                if row[0] not in result:
-                    result[row[0]]={}
-                result[row[0]][value]=row[1]
+            for key in tmp:
+                if key not in result:
+                    result[key]={}
+                result[key][value]=tmp[key]
+                if tmp[key]==None:
+                    del result[key]
         for value in values[1:]:
             for i in result:
                 result[i][value]=wrapper.get(value,i)
