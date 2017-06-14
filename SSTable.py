@@ -43,7 +43,7 @@ class SSTable:
     def get(self, key):
         if key in self.__key_file:
             data = self.__fetch_by_key(self.__key_file[key], key)
-            return data[key]
+            return data
         if not self.contains_key(key):
             return None
         # data = self.__load_ordered_data(self.__key_file[key])
@@ -184,7 +184,7 @@ class SSTable:
                 with open(file_name + "_sstable_comp_dict.dat", "rb") as openfile:
                     comp_dict = pickle.load(openfile)
                     val = comp_dict[val]
-            return key, val
+            return val
 
     def __load_ordered_array(self, file_name):
         data = []

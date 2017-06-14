@@ -26,7 +26,6 @@ class TableWrapper():
         self.column_to_mem[column].getinit()
         result=self.column_to_mem[column].getlist()
         while result!=None:
-            print result
             yield result
             result=self.column_to_mem[column].getlist()
 

@@ -88,8 +88,12 @@ For our implementation, each table has maximum capacity of $1000$ keys, so the f
 
   All the files, dict-based compression dictionary, key index table are loaded before loading the actual data. If the file is compressed by general compression, the data file will be decompressed first. If dict-based compression is enabled, the compression dictionary will be read before decompressing the data file.
 
-  We also support fast loading, which is to load a key-value pair by key in any file. Since we have the relative position of all the key-value pairs, load by key only requires the relative postion, the value, in the key index file. Thus we don't have to load the entire file when we only need several record with some specific keys.
+  We also support fast loading, which is to load a key-value pair by key in any file. Since we have the relative position of all the key-value pairs, load by key only requires the relative position, the value, in the key index file. Thus we don't have to load the entire file when we only need several record with some specific keys.
 
 
 \section{Test}
+We run single case which cover most part of the database. Here is the idea of this test: create two tables, then select and join.
+It is very simple idea but I think I have used every corner of this database.
+The result is shown below:
+The create table takes very little time, which is 1 us. And adding data to the table takes 0.025ms for 256 tuple. The select action takes also 0.026 ms. But the join takes a lot of time, the join takes 0.467 ms for those two tables.
 \end{document}

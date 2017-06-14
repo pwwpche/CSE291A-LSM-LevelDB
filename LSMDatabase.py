@@ -105,3 +105,24 @@ class LSMDatabase():
                 result[i][value]=wrapper.get(value,i)
         print(result)
         return 0
+    def join(self,t1,t2):
+        try:
+            v1=list(self.valuestable[t1])
+            v2=list(self.valuestable[t2])
+        except:
+            return -1
+        vs1=v1[0]
+        vs2=v2[0]
+        v3=set(v1+v2)
+        newid=self.create(v3)
+        w1=self.memorytable[t1]
+        w2=self.memorytable[t2]
+        for tmp in w1.getlist(vs1):
+            for key in tmp:          
+                if w2.get(vs2,key)!=None:
+                    self.setvalue(newid,key,{vs1:tmp[key]})
+                    for v in v1[1:]:
+                        self.setvalue(newid,key,{v:w1.get(v,key)})
+                    for v in v2:   
+                        self.setvalue(newid,key,{v:w2.get(v,key)})
+        return newid

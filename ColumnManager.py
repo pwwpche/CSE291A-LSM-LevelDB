@@ -10,9 +10,6 @@ class ColumnManager:
         self.imTable = []
         self.maxLength = 8
         self.ssTable = SSTable.SSTable(self.filename)
-        self.now = -1
-        self.fileNumber = self.ssTable.getnumber()
-        self.imTableNumber = len(self.imTable) + self.fileNumber
 
     def getinit(self):
         self.now = -1
@@ -49,9 +46,8 @@ class ColumnManager:
 
     def getlist(self):
         self.now += 1
-        print self.now,self.fileNumber
         if self.now < self.fileNumber:
-            return self.ssTable.getfile()
+            return self.ssTable.getfile(self.now)
         elif self.now < self.imTableNumber:
             return self.imTable[self.now - self.fileNumber]
         elif self.now == self.imTableNumber:
