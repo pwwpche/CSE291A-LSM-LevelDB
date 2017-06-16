@@ -1,0 +1,8 @@
+*
+!*.py
+!README.md
+!*.png
+!cse291lsm.tex
+!cse291lsm.pdf
+!.gitignore
+
